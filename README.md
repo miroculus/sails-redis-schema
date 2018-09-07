@@ -40,6 +40,4 @@ This adapter implements the following methods:
 
 ## License
 
-This sails-redis-schema adapter is available under the **MIT license**.
-
-As for [Waterline](https://waterlinejs.org/) and the [Sails framework](https://sailsjs.com)?  They're free and open-source under the [MIT License](https://sailsjs.com/license).
+**MIT**
