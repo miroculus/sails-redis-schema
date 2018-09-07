@@ -37,6 +37,23 @@ This adapter implements the following methods:
 | drop                 | Planned           | DDL           |
 | setSequence          | _**???**_         | DDL           |
 
+## Test
+To run the test, first make sure to have a redis server running. Or start one
+using [Docker](https://docker.com) with:
+
+```sh
+docker-compose up
+```
+
+And then, to execute the tests run; this will connect to the running redis on 127.0.0.1:6379
+```sh
+npm test
+```
+
+Or, you can use a custom redis instance setting the environment variable like this:
+```sh
+REDIS_URL=127.0.0.1:6379 npm test
+```
 
 ## License
 

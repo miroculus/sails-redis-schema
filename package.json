@@ -2,9 +2,8 @@
   "name": "sails-redis-schema",
   "version": "1.0.0",
   "description": "A redis adapter for Sails / Waterline with basic schema support",
-  "main": "index.js",
   "scripts": {
-    "test": "node test/run-standard-tests",
+    "test": "node test",
     "pretest": "npm run lint",
     "lint": "standard --fix"
   },
@@ -25,13 +24,16 @@
   ],
   "author": "mjlescano",
   "license": "MIT",
-  "dependencies": {},
+  "dependencies": {
+    "ioredis": "4.0.0"
+  },
   "devDependencies": {
     "standard": "12.0.1",
     "waterline-adapter-tests": "1.0.1"
   },
   "waterlineAdapter": {
     "type": "sails-redis-schema",
+    "waterlineVersion": "^0.13.0",
     "interfaces": [
       "semantic",
       "queryable",
