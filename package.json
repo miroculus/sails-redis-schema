@@ -4,7 +4,7 @@
   "description": "A redis adapter for Sails / Waterline with basic schema support",
   "scripts": {
     "test": "node test",
-    "pretest": "npm run standard",
+    "posttest": "npm run standard",
     "standard": "standard",
     "standard:fix": "standard --fix"
   },

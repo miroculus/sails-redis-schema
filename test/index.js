@@ -28,6 +28,6 @@ TestRunner({
     url: process.env.REDIS_URL || null
   },
 
-  interfaces: packageMD.waterlineAdapter.interfaces,
+  interfaces: ['semantic'] || packageMD.waterlineAdapter.interfaces,
   features: packageMD.waterlineAdapter.features
 })

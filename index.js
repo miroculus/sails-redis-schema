@@ -1,6 +1,32 @@
+const { callbackify } = require('util')
 const Redis = require('ioredis')
 
 const registeredDatastores = {}
+
+const withDatastore = (fn) => callbackify((datastoreName, ...restParams) => {
+  const datastore = registeredDatastores[datastoreName]
+
+  if (datastore === undefined) {
+    throw new Error('Datastore (`' + datastoreName + '`) is not currently registered with this adapter.')
+  }
+
+  return fn(datastore, ...restParams)
+})
+
+const deleteKeys = (manager, keys) => new Promise((resolve, reject) => {
+  const stream = manager.scanStream({ match: keys })
+
+  stream.on('data', (keys) => {
+    if (keys.length === 0) return
+
+    const pipeline = manager.pipeline()
+    keys.forEach((key) => pipeline.del(key))
+    pipeline.exec()
+  })
+
+  stream.on('end', resolve)
+  stream.on('error', reject)
+})
 
 module.exports = {
   // The identity of this adapter, to be referenced by datastore configurations in a Sails app.
@@ -11,7 +37,7 @@ module.exports = {
 
   // Default datastore configuration.
   defaults: {
-    url: null, // defaults to 127.0.0.1:6379; could be a  connection string (e.g.: 'redis://127.0.0.1:6379'), or a path to a socket (e.g.: '/tmp/redis.sock')
+    url: null, // defaults to 127.0.0.1:6379; could be a  connection string (e.g.: 'redis://127.0.0.1:6379'), or a path to a socket (e.g.: '/tmp/redis.sock'),
     options: {} // any of https://github.com/luin/ioredis/blob/HEAD/API.md#new-redisport-host-options
   },
 
@@ -23,10 +49,10 @@ module.exports = {
    * as an active datastore.
    *
    * @param {Config} config
-   * @param {Object} allKnownModelDefs
+   * @param {Object} models
    * @param  {Function} done
    */
-  registerDatastore: function (config, allKnownModelDefs, done) {
+  registerDatastore: (config, models, done) => {
     // Grab the unique name for this datastore for easy access below.
     const { identity } = config
 
@@ -40,10 +66,26 @@ module.exports = {
       ? new Redis(config.url, config.options)
       : new Redis(config.options)
 
+    const indexes = {}
+    const uniques = {}
+
+    Object.values(models).forEach((model) => {
+      indexes[model.tableName] = []
+      uniques[model.tableName] = []
+
+      Object.values(model.definitions).forEach((attr) => {
+        if (attr.unique === true) indexes[model.tableName].push(attr.columnName)
+        if (attr.index === true) uniques[model.tableName].push(attr.columnName)
+      })
+    })
+
     registeredDatastores[identity] = {
       driver: Redis,
       config,
-      manager
+      manager,
+      models,
+      indexes,
+      uniques
     }
 
     const readyEvent = config.options.enableReadyCheck === false
@@ -71,35 +113,12 @@ module.exports = {
    * @param {String} identity
    * @param {Function} done
    */
-  teardown: function (identity, done) {
-    const datastore = registeredDatastores[identity]
-
-    if (datastore === undefined) {
-      return done(new Error('Attempting to tear down a datastore (`' + identity + '`) which is not currently registered with this adapter.'))
-    }
-
-    delete registeredDatastores[identity]
-
-    datastore.manager.quit(done)
-  }
-
-  /// ///////////////////////////////////////////////////////////////////////////////////////////////
-  //  ██████╗ ███╗   ███╗██╗                                                                      //
-  //  ██╔══██╗████╗ ████║██║                                                                      //
-  //  ██║  ██║██╔████╔██║██║                                                                      //
-  //  ██║  ██║██║╚██╔╝██║██║                                                                      //
-  //  ██████╔╝██║ ╚═╝ ██║███████╗                                                                 //
-  //  ╚═════╝ ╚═╝     ╚═╝╚══════╝                                                                 //
-  // (D)ata (M)anipulation (L)anguage                                                             //
-  //                                                                                              //
-  // DML adapter methods:                                                                         //
-  // Methods related to manipulating records stored in the database.                              //
-  /// ///////////////////////////////////////////////////////////////////////////////////////////////
+  teardown: withDatastore((datastore) => {
+    delete registeredDatastores[datastore.config.identity]
+    return datastore.manager.quit()
+  }),
 
   /**
-   *  ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗
-   *  ║  ╠╦╝║╣ ╠═╣ ║ ║╣
-   *  ╚═╝╩╚═╚═╝╩ ╩ ╩ ╚═╝
    * Create a new record.
    *
    * (e.g. add a new row to a SQL table, or a new document to a MongoDB collection.)
@@ -120,6 +139,8 @@ module.exports = {
   // create: function (datastoreName, query, done) {
   //   // Look up the datastore entry (manager/driver/config).
   //   var dsEntry = registeredDatastores[datastoreName]
+
+  //   console.log('->', query)
 
   //   // Sanity check:
   //   if (dsEntry === undefined) {
@@ -277,65 +298,10 @@ module.exports = {
    *               @param {Array}  [matching physical records]
    * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    */
-  // find: function (datastoreName, query, done) {
-  //   // Look up the datastore entry (manager/driver/config).
-  //   var dsEntry = registeredDatastores[datastoreName]
-
-  //   // Sanity check:
-  //   if (dsEntry === undefined) {
-  //     return done(new Error('Consistency violation: Cannot do that with datastore (`' + datastoreName + '`) because no matching datastore entry is registered in this adapter!  This is usually due to a race condition (e.g. a lifecycle callback still running after the ORM has been torn down), or it could be due to a bug in this adapter.  (If you get stumped, reach out at https://sailsjs.com/support.)'))
-  //   }
-
-  //   // Perform the query and send back a result.
-  //   //
-  //   // > TODO: Replace this setTimeout with real logic that calls
-  //   // > `done()` when finished. (Or remove this method from the
-  //   // > adapter altogether
-  //   setTimeout(function () {
-  //     return done(new Error('Adapter method (`find`) not implemented yet.'))
-  //   }, 16)
-  // },
-
-  /**
-   *   ╦╔═╗╦╔╗╔
-   *   ║║ ║║║║║
-   *  ╚╝╚═╝╩╝╚╝
-   *  ┌─    ┌─┐┌─┐┬─┐  ┌┐┌┌─┐┌┬┐┬┬  ┬┌─┐  ┌─┐┌─┐┌─┐┬ ┬┬  ┌─┐┌┬┐┌─┐    ─┐
-   *  │───  ├┤ │ │├┬┘  │││├─┤ │ │└┐┌┘├┤   ├─┘│ │├─┘│ ││  ├─┤ │ ├┤   ───│
-   *  └─    └  └─┘┴└─  ┘└┘┴ ┴ ┴ ┴ └┘ └─┘  ┴  └─┘┴  └─┘┴─┘┴ ┴ ┴ └─┘    ─┘
-   * Perform a "find" query with one or more native joins.
-   *
-   * > NOTE: If you don't want to support native joins (or if your database does not
-   * > support native joins, e.g. Mongo) remove this method completely!  Without this method,
-   * > Waterline will handle `.populate()` using its built-in join polyfill (aka "polypopulate"),
-   * > which sends multiple queries to the adapter and joins the results in-memory.
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {String}       datastoreName The name of the datastore to perform the query on.
-   * @param  {Dictionary}   query         The stage-3 query to perform.
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {Function}     done          Callback
-   *               @param {Error?}
-   *               @param {Array}  [matching physical records, populated according to the join instructions]
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   */
-  // join: function (datastoreName, query, done) {
-  //   // Look up the datastore entry (manager/driver/config).
-  //   var dsEntry = registeredDatastores[datastoreName]
-
-  //   // Sanity check:
-  //   if (dsEntry === undefined) {
-  //     return done(new Error('Consistency violation: Cannot do that with datastore (`' + datastoreName + '`) because no matching datastore entry is registered in this adapter!  This is usually due to a race condition (e.g. a lifecycle callback still running after the ORM has been torn down), or it could be due to a bug in this adapter.  (If you get stumped, reach out at https://sailsjs.com/support.)'))
-  //   }
-
-  //   // Perform the query and send back a result.
-  //   //
-  //   // > TODO: Replace this setTimeout with real logic that calls
-  //   // > `done()` when finished. (Or remove this method from the
-  //   // > adapter altogether
-  //   setTimeout(function () {
-  //     return done(new Error('Adapter method (`join`) not implemented yet.'))
-  //   }, 16)
-  // },
+  find: withDatastore((datastore, query) => {
+    console.log('--> ', 'find: ', datastore.config.identity, query)
+    throw new Error('Adapter method (`find`) not implemented yet.')
+  }),
 
   /**
    *  ╔═╗╔═╗╦ ╦╔╗╔╔╦╗
@@ -371,118 +337,6 @@ module.exports = {
   // },
 
   /**
-   *  ╔═╗╦ ╦╔╦╗
-   *  ╚═╗║ ║║║║
-   *  ╚═╝╚═╝╩ ╩
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {String}       datastoreName The name of the datastore to perform the query on.
-   * @param  {Dictionary}   query         The stage-3 query to perform.
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {Function}     done          Callback
-   *               @param {Error?}
-   *               @param {Number}  [the sum]
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   */
-  // sum: function (datastoreName, query, done) {
-  //   // Look up the datastore entry (manager/driver/config).
-  //   var dsEntry = registeredDatastores[datastoreName]
-
-  //   // Sanity check:
-  //   if (dsEntry === undefined) {
-  //     return done(new Error('Consistency violation: Cannot do that with datastore (`' + datastoreName + '`) because no matching datastore entry is registered in this adapter!  This is usually due to a race condition (e.g. a lifecycle callback still running after the ORM has been torn down), or it could be due to a bug in this adapter.  (If you get stumped, reach out at https://sailsjs.com/support.)'))
-  //   }
-
-  //   // Perform the query and send back a result.
-  //   //
-  //   // > TODO: Replace this setTimeout with real logic that calls
-  //   // > `done()` when finished. (Or remove this method from the
-  //   // > adapter altogether
-  //   setTimeout(function () {
-  //     return done(new Error('Adapter method (`sum`) not implemented yet.'))
-  //   }, 16)
-  // },
-
-  /**
-   *  ╔═╗╦  ╦╔═╗
-   *  ╠═╣╚╗╔╝║ ╦
-   *  ╩ ╩ ╚╝ ╚═╝
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {String}       datastoreName The name of the datastore to perform the query on.
-   * @param  {Dictionary}   query         The stage-3 query to perform.
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {Function}     done          Callback
-   *               @param {Error?}
-   *               @param {Number}  [the average ("mean")]
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   */
-  // avg: function (datastoreName, query, done) {
-  //   // Look up the datastore entry (manager/driver/config).
-  //   var dsEntry = registeredDatastores[datastoreName]
-
-  //   // Sanity check:
-  //   if (dsEntry === undefined) {
-  //     return done(new Error('Consistency violation: Cannot do that with datastore (`' + datastoreName + '`) because no matching datastore entry is registered in this adapter!  This is usually due to a race condition (e.g. a lifecycle callback still running after the ORM has been torn down), or it could be due to a bug in this adapter.  (If you get stumped, reach out at https://sailsjs.com/support.)'))
-  //   }
-
-  //   // Perform the query and send back a result.
-  //   //
-  //   // > TODO: Replace this setTimeout with real logic that calls
-  //   // > `done()` when finished. (Or remove this method from the
-  //   // > adapter altogether
-  //   setTimeout(function () {
-  //     return done(new Error('Adapter method (`avg`) not implemented yet.'))
-  //   }, 16)
-  // },
-
-  /// ///////////////////////////////////////////////////////////////////////////////////////////////
-  //  ██████╗ ██████╗ ██╗                                                                         //
-  //  ██╔══██╗██╔══██╗██║                                                                         //
-  //  ██║  ██║██║  ██║██║                                                                         //
-  //  ██║  ██║██║  ██║██║                                                                         //
-  //  ██████╔╝██████╔╝███████╗                                                                    //
-  //  ╚═════╝ ╚═════╝ ╚══════╝                                                                    //
-  // (D)ata (D)efinition (L)anguage                                                               //
-  //                                                                                              //
-  // DDL adapter methods:                                                                         //
-  // Methods related to modifying the underlying structure of physical models in the database.    //
-  /// ///////////////////////////////////////////////////////////////////////////////////////////////
-
-  /**
-   *  ╔╦╗╔═╗╔═╗╦╔╗╔╔═╗
-   *   ║║║╣ ╠╣ ║║║║║╣
-   *  ═╩╝╚═╝╚  ╩╝╚╝╚═╝
-   * Build a new physical model (e.g. table/etc) to use for storing records in the database.
-   *
-   * (This is used for schema migrations.)
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {String}       datastoreName The name of the datastore containing the table to define.
-   * @param  {String}       tableName     The name of the table to define.
-   * @param  {Dictionary}   definition    The physical model definition (not a normal Sails/Waterline model-- log this for details.)
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {Function}     done           Callback
-   *               @param {Error?}
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   */
-  // define: function (datastoreName, tableName, definition, done) {
-  //   // Look up the datastore entry (manager/driver/config).
-  //   var dsEntry = registeredDatastores[datastoreName]
-
-  //   // Sanity check:
-  //   if (dsEntry === undefined) {
-  //     return done(new Error('Consistency violation: Cannot do that with datastore (`' + datastoreName + '`) because no matching datastore entry is registered in this adapter!  This is usually due to a race condition (e.g. a lifecycle callback still running after the ORM has been torn down), or it could be due to a bug in this adapter.  (If you get stumped, reach out at https://sailsjs.com/support.)'))
-  //   }
-
-  //   // Define the physical model (e.g. table/etc.)
-  //   //
-  //   // > TODO: Replace this setTimeout with real logic that calls
-  //   // > `done()` when finished. (Or remove this method from the
-  //   // > adapter altogether
-  //   setTimeout(function () {
-  //     return done(new Error('Adapter method (`define`) not implemented yet.'))
-  //   }, 16)
-  // },
-
-  /**
    *  ╔╦╗╦═╗╔═╗╔═╗
    *   ║║╠╦╝║ ║╠═╝
    *  ═╩╝╩╚═╚═╝╩
@@ -498,62 +352,19 @@ module.exports = {
    *               @param {Error?}
    * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    */
-  // drop: function (datastoreName, tableName, unused, done) {
-  //   // Look up the datastore entry (manager/driver/config).
-  //   var dsEntry = registeredDatastores[datastoreName]
+  drop: withDatastore((datastore, tableName) => {
+    const { manager } = datastore
+    const indexes = datastore.indexes[tableName]
 
-  //   // Sanity check:
-  //   if (dsEntry === undefined) {
-  //     return done(new Error('Consistency violation: Cannot do that with datastore (`' + datastoreName + '`) because no matching datastore entry is registered in this adapter!  This is usually due to a race condition (e.g. a lifecycle callback still running after the ORM has been torn down), or it could be due to a bug in this adapter.  (If you get stumped, reach out at https://sailsjs.com/support.)'))
-  //   }
+    const indexesDeletion = Promise.all(
+      indexes.map(
+        (attrName) => manager.del(`${tableName}.index:${attrName}`)
+      )
+    )
 
-  //   // Drop the physical model (e.g. table/etc.)
-  //   //
-  //   // > TODO: Replace this setTimeout with real logic that calls
-  //   // > `done()` when finished. (Or remove this method from the
-  //   // > adapter altogether
-  //   setTimeout(function () {
-  //     return done(new Error('Adapter method (`drop`) not implemented yet.'))
-  //   }, 16)
-  // },
-
-  /**
-   *  ╔═╗╔═╗╔╦╗  ┌─┐┌─┐┌─┐ ┬ ┬┌─┐┌┐┌┌─┐┌─┐
-   *  ╚═╗║╣  ║   └─┐├┤ │─┼┐│ │├┤ ││││  ├┤
-   *  ╚═╝╚═╝ ╩   └─┘└─┘└─┘└└─┘└─┘┘└┘└─┘└─┘
-   * Set a sequence in a physical model (specifically, the auto-incrementing
-   * counter for the primary key) to the specified value.
-   *
-   * (This is used for schema migrations.)
-   *
-   * > NOTE - If your adapter doesn't support sequence entities (like PostgreSQL),
-   * > you should remove this method.
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {String}       datastoreName   The name of the datastore containing the table/etc.
-   * @param  {String}       sequenceName    The name of the sequence to update.
-   * @param  {Number}       sequenceValue   The new value for the sequence (e.g. 1)
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {Function}     done
-   *               @param {Error?}
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   */
-  // setSequence: function (datastoreName, sequenceName, sequenceValue, done) {
-  //   // Look up the datastore entry (manager/driver/config).
-  //   var dsEntry = registeredDatastores[datastoreName]
-
-  //   // Sanity check:
-  //   if (dsEntry === undefined) {
-  //     return done(new Error('Consistency violation: Cannot do that with datastore (`' + datastoreName + '`) because no matching datastore entry is registered in this adapter!  This is usually due to a race condition (e.g. a lifecycle callback still running after the ORM has been torn down), or it could be due to a bug in this adapter.  (If you get stumped, reach out at https://sailsjs.com/support.)'))
-  //   }
-
-  //   // Update the sequence.
-  //   //
-  //   // > TODO: Replace this setTimeout with real logic that calls
-  //   // > `done()` when finished. (Or remove this method from the
-  //   // > adapter altogether
-  //   setTimeout(function () {
-  //     return done(new Error('Adapter method (`setSequence`) not implemented yet.'))
-  //   }, 16)
-  // }
-
+    return Promise.all([
+      deleteKeys(manager, `${tableName}:*`),
+      indexesDeletion
+    ])
+  })
 }
