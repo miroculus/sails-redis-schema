@@ -5,8 +5,8 @@
   "scripts": {
     "test": "node test",
     "pretest": "npm run lint",
-    "lint": "standard --fix",
-    "standard": "standard"
+    "lint": "standard"
+    "lint:fix": "standard --fix"
   },
   "repository": {
     "type": "git",
@@ -45,6 +45,6 @@
   },
   "precommit.silent": false,
   "pre-commit": [
-    "standard"
+    "lint"
   ]
 }
