@@ -5,7 +5,7 @@
   "scripts": {
     "test": "node test",
     "pretest": "npm run lint",
-    "lint": "standard"
+    "lint": "standard",
     "lint:fix": "standard --fix"
   },
   "repository": {
