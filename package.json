@@ -4,9 +4,9 @@
   "description": "A redis adapter for Sails / Waterline with basic schema support",
   "scripts": {
     "test": "node test",
-    "pretest": "npm run lint",
-    "lint": "standard",
-    "lint:fix": "standard --fix"
+    "pretest": "npm run standard",
+    "standard": "standard",
+    "standard:fix": "standard --fix"
   },
   "repository": {
     "type": "git",
@@ -45,6 +45,6 @@
   },
   "precommit.silent": false,
   "pre-commit": [
-    "lint"
+    "standard"
   ]
 }
