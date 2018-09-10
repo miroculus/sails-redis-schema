@@ -111,7 +111,9 @@ module.exports = {
       const exists = await manager.exists(`${tableName}:${id}`)
 
       if (exists) {
-        throw new Error(`Already exists a record with ${model.primaryKey} ${id} on ${tableName}`)
+        const err = new Error(`Already exists a record with "${model.primaryKey}"="${id}" on ${tableName}`)
+        err.code = 'E_UNIQUE'
+        throw err
       }
     } else {
       record[model.primaryKey] = shortid.generate()
@@ -136,44 +138,6 @@ module.exports = {
 
     if (shouldFetch) return record
   }),
-
-  /**
-   *  ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗  ╔═╗╔═╗╔═╗╦ ╦
-   *  ║  ╠╦╝║╣ ╠═╣ ║ ║╣   ║╣ ╠═╣║  ╠═╣
-   *  ╚═╝╩╚═╚═╝╩ ╩ ╩ ╚═╝  ╚═╝╩ ╩╚═╝╩ ╩
-   * Create multiple new records.
-   *
-   * > Note that depending on the value of `query.meta.fetch`,
-   * > you may be expected to return the array of physical records
-   * > that were created as the second argument to the callback.
-   * > (Otherwise, exclude the 2nd argument or send back `undefined`.)
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {String}       datastoreName The name of the datastore to perform the query on.
-   * @param  {Dictionary}   query         The stage-3 query to perform.
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {Function}     done            Callback
-   *               @param {Error?}
-   *               @param {Array?}
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   */
-  // createEach: function (datastoreName, query, done) {
-  //   // Look up the datastore entry (manager/driver/config).
-  //   var dsEntry = registeredDatastores[datastoreName]
-
-  //   // Sanity check:
-  //   if (dsEntry === undefined) {
-  //     return done(new Error('Consistency violation: Cannot do that with datastore (`' + datastoreName + '`) because no matching datastore entry is registered in this adapter!  This is usually due to a race condition (e.g. a lifecycle callback still running after the ORM has been torn down), or it could be due to a bug in this adapter.  (If you get stumped, reach out at https://sailsjs.com/support.)'))
-  //   }
-
-  //   // Perform the query (and if relevant, send back a result.)
-  //   //
-  //   // > TODO: Replace this setTimeout with real logic that calls
-  //   // > `done()` when finished. (Or remove this method from the
-  //   // > adapter altogether
-  //   setTimeout(function () {
-  //     return done(new Error('Adapter method (`createEach`) not implemented yet.'))
-  //   }, 16)
-  // },
 
   /**
    *  ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗
