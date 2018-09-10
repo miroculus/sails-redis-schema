@@ -1,5 +1,8 @@
 const { callbackify } = require('util')
 const Redis = require('ioredis')
+const shortid = require('shortid')
+const createManager = require('./lib/create-manager')
+const deleteKeys = require('./lib/delete-keys')
 
 const registeredDatastores = {}
 
@@ -11,21 +14,6 @@ const withDatastore = (fn) => callbackify((datastoreName, ...restParams) => {
   }
 
   return fn(datastore, ...restParams)
-})
-
-const deleteKeys = (manager, keys) => new Promise((resolve, reject) => {
-  const stream = manager.scanStream({ match: keys })
-
-  stream.on('data', (keys) => {
-    if (keys.length === 0) return
-
-    const pipeline = manager.pipeline()
-    keys.forEach((key) => pipeline.del(key))
-    pipeline.exec()
-  })
-
-  stream.on('end', resolve)
-  stream.on('error', reject)
 })
 
 module.exports = {
@@ -52,59 +40,45 @@ module.exports = {
    * @param {Object} models
    * @param  {Function} done
    */
-  registerDatastore: (config, models, done) => {
+  registerDatastore: callbackify(async (config, models) => {
     // Grab the unique name for this datastore for easy access below.
     const { identity } = config
 
-    if (!identity) return done(new Error('Datastore is missing an identity'))
+    if (!identity) throw new Error('Datastore is missing an identity')
 
     if (registeredDatastores[identity]) {
-      return done(new Error('Datastore (`' + identity + '`) has already been registered by sails-redis'))
+      throw new Error('Datastore (`' + identity + '`) has already been registered by sails-redis')
     }
 
-    const manager = config.url
-      ? new Redis(config.url, config.options)
-      : new Redis(config.options)
-
     const indexes = {}
-    const uniques = {}
 
     Object.values(models).forEach((model) => {
       indexes[model.tableName] = []
-      uniques[model.tableName] = []
-
-      Object.values(model.definitions).forEach((attr) => {
-        if (attr.unique === true) indexes[model.tableName].push(attr.columnName)
-        if (attr.index === true) uniques[model.tableName].push(attr.columnName)
+      Object.values(model.definition).forEach((attr) => {
+        if (attr.meta && attr.meta.index === true) {
+          indexes[model.tableName].push(attr.columnName)
+        }
       })
     })
 
-    registeredDatastores[identity] = {
+    const options = config.url
+      ? { url: config.url, ...config.options }
+      : config.options
+
+    const manager = await createManager(options)
+
+    const datastore = {
       driver: Redis,
       config,
       manager,
       models,
-      indexes,
-      uniques
+      indexes
     }
 
-    const readyEvent = config.options.enableReadyCheck === false
-      ? 'connect'
-      : 'ready'
+    registeredDatastores[identity] = datastore
 
-    const onReady = () => {
-      done(null, registeredDatastores[identity])
-      manager.off('error', onError)
-    }
-
-    const onError = (err) => {
-      done(err)
-      manager.off(readyEvent, onReady)
-    }
-
-    manager.once(readyEvent, onReady)
-    manager.once('error', onError)
-  },
+    return datastore
+  }),
 
   /**
    * Unregister the specified datastore, so that is no longer considered active,
@@ -120,42 +94,46 @@ module.exports = {
 
   /**
    * Create a new record.
-   *
-   * (e.g. add a new row to a SQL table, or a new document to a MongoDB collection.)
-   *
-   * > Note that depending on the value of `query.meta.fetch`,
-   * > you may be expected to return the physical record that was
-   * > created (a dictionary) as the second argument to the callback.
-   * > (Otherwise, exclude the 2nd argument or send back `undefined`.)
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {String}       datastoreName The name of the datastore to perform the query on.
-   * @param  {Dictionary}   query         The stage-3 query to perform.
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {Function}     done          Callback
-   *               @param {Error?}
-   *               @param {Dictionary?}
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    */
-  // create: function (datastoreName, query, done) {
-  //   // Look up the datastore entry (manager/driver/config).
-  //   var dsEntry = registeredDatastores[datastoreName]
+  create: withDatastore(async (datastore, query) => {
+    const { manager } = datastore
+    const shouldFetch = !!query.meta.fetch
+    const model = datastore.models[query.using]
+    const { tableName } = model
+    const indexes = datastore.indexes[tableName]
 
-  //   console.log('->', query)
+    const record = { ...query.newRecord }
 
-  //   // Sanity check:
-  //   if (dsEntry === undefined) {
-  //     return done(new Error('Consistency violation: Cannot do that with datastore (`' + datastoreName + '`) because no matching datastore entry is registered in this adapter!  This is usually due to a race condition (e.g. a lifecycle callback still running after the ORM has been torn down), or it could be due to a bug in this adapter.  (If you get stumped, reach out at https://sailsjs.com/support.)'))
-  //   }
+    // Check given id uniqueness
+    if (record[model.primaryKey]) {
+      const id = record[model.primaryKey]
+      const exists = await manager.exists(`${tableName}:${id}`)
 
-  //   // Perform the query (and if relevant, send back a result.)
-  //   //
-  //   // > TODO: Replace this setTimeout with real logic that calls
-  //   // > `done()` when finished. (Or remove this method from the
-  //   // > adapter altogether
-  //   setTimeout(function () {
-  //     return done(new Error('Adapter method (`create`) not implemented yet.'))
-  //   }, 16)
-  // },
+      if (exists) {
+        throw new Error(`Already exists a record with ${model.primaryKey} ${id} on ${tableName}`)
+      }
+    } else {
+      record[model.primaryKey] = shortid.generate()
+    }
+
+    const id = record[model.primaryKey]
+
+    // Create a redis transaction pipeline
+    const cmd = manager.multi()
+
+    // Create record on redis
+    cmd.hmset(`${tableName}:${id}`, record)
+
+    // Create the necessary indexes
+    indexes.forEach((attrName) => {
+      cmd.sadd(`${tableName}.index:${attrName}`, id)
+    })
+
+    // Execute transaction
+    await cmd.exec()
+
+    if (shouldFetch) return record
+  }),
 
   /**
    *  ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗  ╔═╗╔═╗╔═╗╦ ╦
@@ -271,51 +249,20 @@ module.exports = {
   //   }, 16)
   // },
 
-  /// ///////////////////////////////////////////////////////////////////////////////////////////////
-  //  ██████╗  ██████╗ ██╗                                                                        //
-  //  ██╔══██╗██╔═══██╗██║                                                                        //
-  //  ██║  ██║██║   ██║██║                                                                        //
-  //  ██║  ██║██║▄▄ ██║██║                                                                        //
-  //  ██████╔╝╚██████╔╝███████╗                                                                   //
-  //  ╚═════╝  ╚══▀▀═╝ ╚══════╝                                                                   //
-  // (D)ata (Q)uery (L)anguage                                                                    //
-  //                                                                                              //
-  // DQL adapter methods:                                                                         //
-  // Methods related to fetching information from the database (e.g. finding stored records).     //
-  /// ///////////////////////////////////////////////////////////////////////////////////////////////
-
   /**
-   *  ╔═╗╦╔╗╔╔╦╗
-   *  ╠╣ ║║║║ ║║
-   *  ╚  ╩╝╚╝═╩╝
    * Find matching records.
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {String}       datastoreName The name of the datastore to perform the query on.
-   * @param  {Dictionary}   query         The stage-3 query to perform.
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {Function}     done            Callback
-   *               @param {Error?}
-   *               @param {Array}  [matching physical records]
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    */
   find: withDatastore((datastore, query) => {
-    console.log('--> ', 'find: ', datastore.config.identity, query)
+    const { criteria, meta } = query
+
+    console.log('--> criteria', criteria)
+    console.log('--> meta', meta)
+
     throw new Error('Adapter method (`find`) not implemented yet.')
   }),
 
   /**
-   *  ╔═╗╔═╗╦ ╦╔╗╔╔╦╗
-   *  ║  ║ ║║ ║║║║ ║
-   *  ╚═╝╚═╝╚═╝╝╚╝ ╩
    * Get the number of matching records.
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {String}       datastoreName The name of the datastore to perform the query on.
-   * @param  {Dictionary}   query         The stage-3 query to perform.
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {Function}     done          Callback
-   *               @param {Error?}
-   *               @param {Number}  [the number of matching records]
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    */
   // count: function (datastoreName, query, done) {
   //   // Look up the datastore entry (manager/driver/config).
@@ -337,26 +284,14 @@ module.exports = {
   // },
 
   /**
-   *  ╔╦╗╦═╗╔═╗╔═╗
-   *   ║║╠╦╝║ ║╠═╝
-   *  ═╩╝╩╚═╚═╝╩
    * Drop a physical model (table/etc.) from the database, including all of its records.
-   *
    * (This is used for schema migrations.)
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {String}       datastoreName The name of the datastore containing the table to drop.
-   * @param  {String}       tableName     The name of the table to drop.
-   * @param  {Ref}          unused        Currently unused (do not use this argument.)
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {Function}     done          Callback
-   *               @param {Error?}
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    */
   drop: withDatastore((datastore, tableName) => {
     const { manager } = datastore
     const indexes = datastore.indexes[tableName]
 
-    const indexesDeletion = Promise.all(
+    const deleteIndexes = Promise.all(
       indexes.map(
         (attrName) => manager.del(`${tableName}.index:${attrName}`)
       )
@@ -364,7 +299,7 @@ module.exports = {
 
     return Promise.all([
       deleteKeys(manager, `${tableName}:*`),
-      indexesDeletion
+      deleteIndexes
     ])
   })
 }

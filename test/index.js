@@ -1,33 +1,44 @@
-#!/usr/bin/env node
+const { before, after } = require('mocha')
+const Waterline = require('waterline')
+const sailsRedisSchemaAdapter = require('../')
 
-/**
- * Module dependencies
- */
+before(function (done) {
+  const ctx = {}
 
-var TestRunner = require('waterline-adapter-tests')
-var packageMD = require('../package.json')
-var Adapter = require('../')
+  this.ctx = ctx
 
-// Log an intro message.
-console.log('Testing `' + packageMD.name + '`, a Sails/Waterline adapter.')
-console.log('Running `waterline-adapter-tests` against ' + packageMD.waterlineAdapter.interfaces.length + ' interface(s) and ' + packageMD.waterlineAdapter.features.length + ' feature(s)...')
-console.log('|   Interfaces:       ' + (packageMD.waterlineAdapter.interfaces.join(', ') || 'n/a') + '')
-console.log('|   Extra features:   ' + (packageMD.waterlineAdapter.features.join(', ') || 'n/a') + '')
-console.log()
+  const waterline = new Waterline()
 
-// Use the `waterline-adapter-tests` module to
-// run mocha tests against the specified interfaces
-// of the currently-implemented Waterline adapter API.
-TestRunner({
+  const config = {
+    adapters: {
+      'redis-schema': sailsRedisSchemaAdapter
+    },
+    datastores: {
+      default: {
+        adapter: 'redis-schema'
+      }
+    }
+  }
 
-  // Load the adapter module.
-  adapter: Adapter,
+  const UserCollection = Waterline.Collection.extend(require('./models/User'))
 
-  // Adapter config to use for tests.
-  config: {
-    url: process.env.REDIS_URL || null
-  },
+  waterline.registerModel(UserCollection)
 
-  interfaces: ['semantic'] || packageMD.waterlineAdapter.interfaces,
-  features: packageMD.waterlineAdapter.features
+  waterline.initialize(config, (err, ontology) => {
+    if (err) return done(err)
+
+    ctx.User = ontology.collections.user
+
+    done()
+  })
 })
+
+before(async function () {
+  this.ctx.manager = sailsRedisSchemaAdapter.datastores['default'].manager
+})
+
+before(async function () {
+  await this.ctx.manager.flushall()
+})
+
+after((done) => sailsRedisSchemaAdapter.teardown('default', done))
