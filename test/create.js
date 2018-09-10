@@ -1,5 +1,6 @@
 const { describe, it } = require('mocha')
 const { expect } = require('chai')
+const md5 = require('../lib/md5')
 
 describe('.create()', function () {
   it('should create a user on redis', async function () {
@@ -19,7 +20,8 @@ describe('.create()', function () {
     expect(result).to.be.eql(user)
 
     // Check it indexed the firstName
-    const isIndexed = await manager.sismember(`user.index:firstName`, user.id)
+    const indexKey = md5(user.firstName)
+    const isIndexed = await manager.sismember(`user.index:firstName:${indexKey}`, user.id)
     expect(isIndexed).to.be.equal(1)
   })
 })

@@ -3,6 +3,7 @@ const Redis = require('ioredis')
 const shortid = require('shortid')
 const createManager = require('./lib/create-manager')
 const deleteKeys = require('./lib/delete-keys')
+const md5 = require('./lib/md5')
 
 const registeredDatastores = {}
 
@@ -126,7 +127,8 @@ module.exports = {
 
     // Create the necessary indexes
     indexes.forEach((attrName) => {
-      cmd.sadd(`${tableName}.index:${attrName}`, id)
+      const attrValue = md5(record[attrName])
+      cmd.sadd(`${tableName}.index:${attrName}:${attrValue}`, id)
     })
 
     // Execute transaction
