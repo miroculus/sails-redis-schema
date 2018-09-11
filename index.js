@@ -113,33 +113,19 @@ module.exports = {
   /**
    * Destroy one or more records.
    */
-  // destroy: withDatastore(async (datastore, query) => {
-  //   const { manager } = datastore
-  //   const { criteria } = query
-  //   const { where, select } = criteria
-  //   const shouldFetch = !!query.meta && !!query.meta.fetch
-  //   const model = datastore.models[query.using]
-  //   const { tableName } = model
-  //   const indexes = datastore.indexes[model.tableName]
+  destroy: withDatastore(async (datastore, query) => {
+    const schema = datastore.schemas[query.using]
+    const { where, select } = query.criteria
+    const ids = await schema.fetchIds(where)
 
-  //   const ids = await parseQuery(manager, model, indexes, where)
-  //   const keys = ids.map((id) => getRecordKey(tableName, id))
+    const result = !!query.meta && !!query.meta.fetch
+      ? await schema.findByIds(ids, select)
+      : undefined
 
-  //   const results = await manager
-  //     .pipeline(keys.map((k) => ['hmget', k, ...select]))
-  //     .exec()
+    await schema.destroyByIds(ids)
 
-  //   const records = results.map(([, values]) => {
-  //     const result = values.reduce((result, value, index) => {
-  //       result[select[index]] = value
-  //       return result
-  //     }, {})
-
-  //     return parseResult(model.definition, result)
-  //   })
-
-  //   return records
-  // }),
+    return result
+  }),
 
   /**
    * Find matching records.
