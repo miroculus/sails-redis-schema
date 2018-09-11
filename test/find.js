@@ -65,6 +65,24 @@ describe('.find()', function () {
     arraysAreEqual(result, [user1, user2])
   })
 
+  it('should find multiple users with different firstNames', async function () {
+    const { User } = this.ctx
+
+    const user1 = await User.create({
+      firstName: `The name ${Date.now()}`
+    }).fetch()
+
+    const user2 = await User.create({
+      firstName: `Another name ${Date.now()}`
+    }).fetch()
+
+    const result = await User.find({
+      firstName: [user1.firstName, user2.firstName]
+    })
+
+    arraysAreEqual(result, [user1, user2])
+  })
+
   it('should select given keys', async function () {
     const { User } = this.ctx
 
