@@ -1,13 +1,6 @@
 const { describe, it } = require('mocha')
 const { expect } = require('chai')
-const deepIncludes = require('node-deep-includes')
-
-const arraysAreEqual = (container, values) => {
-  expect(container.length).to.be.equal(values.length)
-  values.forEach((val) => {
-    expect(deepIncludes(container, val)).to.be.equal(true)
-  })
-}
+const compareResults = require('./helpers/compare-results')
 
 describe('.find()', function () {
   it('should find one user by id', async function () {
@@ -38,7 +31,7 @@ describe('.find()', function () {
 
     const result = await User.find({ id: [user1.id, user2.id] })
 
-    arraysAreEqual(result, [user1, user2])
+    compareResults(result, [user1, user2])
   })
 
   it('should find one user by firstName', async function () {
@@ -62,7 +55,7 @@ describe('.find()', function () {
 
     const result = await User.find({ firstName })
 
-    arraysAreEqual(result, [user1, user2])
+    compareResults(result, [user1, user2])
   })
 
   it('should find multiple users with different firstNames', async function () {
@@ -80,7 +73,7 @@ describe('.find()', function () {
       firstName: [user1.firstName, user2.firstName]
     })
 
-    arraysAreEqual(result, [user1, user2])
+    compareResults(result, [user1, user2])
   })
 
   it('should select given keys', async function () {

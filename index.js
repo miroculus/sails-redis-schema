@@ -92,23 +92,31 @@ module.exports = {
   create: withDatastore(async (datastore, query) => {
     const schema = datastore.schemas[query.using]
     const record = await schema.create(query.newRecord)
-    if (!!query.meta && !!query.meta.fetch) return record
+    if (!!query.meta && query.meta.fetch === true) return record
   }),
 
   /**
    * Update matching records.
    */
-  // update: withDatastore(async (datastore, query) => {
-  //   const { manager } = datastore
-  //   const shouldFetch = !!query.meta.fetch
-  //   const model = datastore.models[query.using]
-  //   const indexes = datastore.indexes[model.tableName]
+  update: withDatastore(async (datastore, query) => {
+    const schema = datastore.schemas[query.using]
+    const { valuesToSet } = query
+    const { where } = query.criteria
 
-  //   const ids = await getQueryIds(manager, model, indexes, query.where)
+    const ids = await schema.fetchIds(where)
 
-  //   console.log('-->', query)
-  //   console.log('-->', ids)
-  // }),
+    // We should implement an update using lua, to avoid to get all the
+    // modified items. In the meantime, we apply a hard limit of 100 updates at a time.
+    if (ids.length > 100) {
+      throw new Error(`Cannot update more than 100 items at a time.`)
+    }
+
+    await schema.updateByIds(ids, valuesToSet)
+
+    return !!query.meta && query.meta.fetch === true
+      ? schema.findByIds(ids)
+      : undefined
+  }),
 
   /**
    * Destroy one or more records.
@@ -118,7 +126,7 @@ module.exports = {
     const { where, select } = query.criteria
     const ids = await schema.fetchIds(where)
 
-    const result = !!query.meta && !!query.meta.fetch
+    const result = !!query.meta && query.meta.fetch === true
       ? await schema.findByIds(ids, select)
       : undefined
 
