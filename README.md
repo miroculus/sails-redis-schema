@@ -1,6 +1,6 @@
 # sails-redis-schema
 
-A redis adapter for Sails / Waterline with basic schema support.
+A redis adapter for Sails / Waterline with basic schema and indexing support.
 
 ## Installation
 
@@ -10,11 +10,39 @@ To install this adapter, run:
 npm install sails-redis-schema
 ```
 
-Then [connect the adapter](https://sailsjs.com/documentation/reference/configuration/sails-config-datastores) to one or more of your app's datastores.
+Then, add the adapter to the `config/datastores.js` file like this:
+
+```javascript
+module.exports.datastores = {
+  'redis-schema': {
+    adapter: require('sails-redis-schema'),
+    url: 'redis://user:password@127.0.0.1:6379' // defaults to '127.0.0.1:6379'
+  }
+};
+```
+
+You could also use the options field with any of the values listed here:
+https://github.com/luin/ioredis/blob/HEAD/API.md#new-redisport-host-options
+
+```javascript
+module.exports.datastores = {
+  'redis-schema': {
+    adapter: require('sails-redis-schema'),
+    options: {
+      host: '192.168.1.1',
+      port: 5412,
+      db: 3,
+      enableOfflineQueue: false
+    }
+  }
+};
+```
+
+_More info about datastores at: https://sailsjs.com/documentation/reference/configuration/sails-config-datastores_
 
 ## Usage
 
-Visit [Models & ORM](https://sailsjs.com/docs/concepts/models-and-orm) in the docs for more information about using models, datastores, and adapters in your app/microservice.
+_Visit [Models & ORM](https://sailsjs.com/docs/concepts/models-and-orm) in the docs for more information about using models, datastores, and adapters in your app/microservice._
 
 ## Compatibility
 
