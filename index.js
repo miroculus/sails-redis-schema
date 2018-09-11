@@ -138,24 +138,12 @@ module.exports = {
   /**
    * Get the number of matching records.
    */
-  // count: function (datastoreName, query, done) {
-  //   // Look up the datastore entry (manager/driver/config).
-  //   var dsEntry = registeredDatastores[datastoreName]
-
-  //   // Sanity check:
-  //   if (dsEntry === undefined) {
-  //     return done(new Error('Consistency violation: Cannot do that with datastore (`' + datastoreName + '`) because no matching datastore entry is registered in this adapter!  This is usually due to a race condition (e.g. a lifecycle callback still running after the ORM has been torn down), or it could be due to a bug in this adapter.  (If you get stumped, reach out at https://sailsjs.com/support.)'))
-  //   }
-
-  //   // Perform the query and send back a result.
-  //   //
-  //   // > TODO: Replace this setTimeout with real logic that calls
-  //   // > `done()` when finished. (Or remove this method from the
-  //   // > adapter altogether
-  //   setTimeout(function () {
-  //     return done(new Error('Adapter method (`count`) not implemented yet.'))
-  //   }, 16)
-  // },
+  count: withDatastore(async (datastore, query) => {
+    const schema = datastore.schemas[query.using]
+    const { where } = query.criteria
+    const ids = await schema.fetchIds(where)
+    return schema.count(ids)
+  }),
 
   /**
    * Drop a physical model (table/etc.) from the database, including all of its records.
