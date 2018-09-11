@@ -13,9 +13,11 @@ before(function (done) {
     adapters: {
       'redis-schema': sailsRedisSchemaAdapter
     },
+
     datastores: {
       default: {
-        adapter: 'redis-schema'
+        adapter: 'redis-schema',
+        url: process.env.TEST_REDIS_URL || null
       }
     }
   }
