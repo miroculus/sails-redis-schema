@@ -1,9 +1,10 @@
 const { describe, it } = require('mocha')
 const { expect } = require('chai')
 const md5 = require('../lib/md5')
+const parseResult = require('../lib/parse-result')
 
 describe('.create()', function () {
-  it('should create a user on redis', async function () {
+  it('should create a user', async function () {
     const { User, manager } = this.ctx
 
     const user = await User.create({
@@ -12,12 +13,12 @@ describe('.create()', function () {
     }).fetch()
 
     expect(user.id).to.be.a('string')
-    expect(user.firstName).to.equal('Sarasa')
-    expect(user.lastName).to.equal('Pirulo')
+    expect(user.firstName).to.be.equal('Sarasa')
+    expect(user.lastName).to.be.equal('Pirulo')
 
     // Check saved value on DB
     const result = await manager.hgetall(`user:${user.id}`)
-    expect(result).to.be.eql(user)
+    expect(parseResult(User.attributes, result)).to.be.eql(user)
 
     // Check it indexed the firstName
     const indexKey = md5(user.firstName)
@@ -25,7 +26,7 @@ describe('.create()', function () {
     expect(isIndexed).to.be.equal(1)
   })
 
-  it('shouldn\'t create a repeated user', async function () {
+  it('should not create a repeated user', async function () {
     const { User } = this.ctx
 
     const user = await User.create({

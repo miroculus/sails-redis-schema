@@ -27,6 +27,8 @@
   "license": "MIT",
   "dependencies": {
     "ioredis": "4.0.0",
+    "map-obj": "3.0.0",
+    "node-deep-includes": "1.0.5",
     "shortid": "2.2.13"
   },
   "devDependencies": {

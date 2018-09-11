@@ -8,6 +8,10 @@ module.exports = {
     id: {
       type: 'string'
     },
+    age: {
+      type: 'number',
+      defaultsTo: 18
+    },
     firstName: {
       type: 'string',
       required: true,

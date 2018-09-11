@@ -3,7 +3,9 @@ const Redis = require('ioredis')
 const shortid = require('shortid')
 const createManager = require('./lib/create-manager')
 const deleteKeys = require('./lib/delete-keys')
-const md5 = require('./lib/md5')
+const { getIndexKey, getRecordKey } = require('./lib/key-getters')
+const parseQuery = require('./lib/parse-query')
+const parseResult = require('./lib/parse-result')
 
 const registeredDatastores = {}
 
@@ -45,20 +47,24 @@ module.exports = {
     // Grab the unique name for this datastore for easy access below.
     const { identity } = config
 
-    if (!identity) throw new Error('Datastore is missing an identity')
+    if (!identity) throw new Error('Datastore is missing an identity.')
 
     if (registeredDatastores[identity]) {
-      throw new Error('Datastore (`' + identity + '`) has already been registered by sails-redis')
+      throw new Error('Datastore (`' + identity + '`) has already been registered by sails-redis.')
     }
 
     const indexes = {}
 
+    // Index attributes that have { meta: { index: true } }
     Object.values(models).forEach((model) => {
       indexes[model.tableName] = []
       Object.values(model.definition).forEach((attr) => {
-        if (attr.meta && attr.meta.index === true) {
-          indexes[model.tableName].push(attr.columnName)
+        if (!attr.meta || attr.meta.index !== true) return
+        if (attr.type !== 'number' && attr.type !== 'string') {
+          throw new Error('Only attributes with type "number" or "string" can be indexed.')
         }
+
+        indexes[model.tableName].push(attr.columnName)
       })
     })
 
@@ -98,7 +104,7 @@ module.exports = {
    */
   create: withDatastore(async (datastore, query) => {
     const { manager } = datastore
-    const shouldFetch = !!query.meta.fetch
+    const shouldFetch = !!query.meta && !!query.meta.fetch
     const model = datastore.models[query.using]
     const { tableName } = model
     const indexes = datastore.indexes[tableName]
@@ -125,12 +131,12 @@ module.exports = {
     const cmd = manager.multi()
 
     // Create record on redis
-    cmd.hmset(`${tableName}:${id}`, record)
+    cmd.hmset(getRecordKey(tableName, id), record)
 
     // Create the necessary indexes
     indexes.forEach((attrName) => {
-      const attrValue = md5(record[attrName])
-      cmd.sadd(`${tableName}.index:${attrName}:${attrValue}`, id)
+      const key = getIndexKey(tableName, attrName, record[attrName])
+      cmd.sadd(key, id)
     })
 
     // Execute transaction
@@ -140,42 +146,19 @@ module.exports = {
   }),
 
   /**
-   *  ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗
-   *  ║ ║╠═╝ ║║╠═╣ ║ ║╣
-   *  ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝
    * Update matching records.
-   *
-   * > Note that depending on the value of `query.meta.fetch`,
-   * > you may be expected to return the array of physical records
-   * > that were updated as the second argument to the callback.
-   * > (Otherwise, exclude the 2nd argument or send back `undefined`.)
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {String}       datastoreName The name of the datastore to perform the query on.
-   * @param  {Dictionary}   query         The stage-3 query to perform.
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   * @param  {Function}     done            Callback
-   *               @param {Error?}
-   *               @param {Array?}
-   * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    */
-  // update: function (datastoreName, query, done) {
-  //   // Look up the datastore entry (manager/driver/config).
-  //   var dsEntry = registeredDatastores[datastoreName]
+  // update: withDatastore(async (datastore, query) => {
+  //   const { manager } = datastore
+  //   const shouldFetch = !!query.meta.fetch
+  //   const model = datastore.models[query.using]
+  //   const indexes = datastore.indexes[model.tableName]
 
-  //   // Sanity check:
-  //   if (dsEntry === undefined) {
-  //     return done(new Error('Consistency violation: Cannot do that with datastore (`' + datastoreName + '`) because no matching datastore entry is registered in this adapter!  This is usually due to a race condition (e.g. a lifecycle callback still running after the ORM has been torn down), or it could be due to a bug in this adapter.  (If you get stumped, reach out at https://sailsjs.com/support.)'))
-  //   }
+  //   const ids = await getQueryIds(manager, model, indexes, query.where)
 
-  //   // Perform the query (and if relevant, send back a result.)
-  //   //
-  //   // > TODO: Replace this setTimeout with real logic that calls
-  //   // > `done()` when finished. (Or remove this method from the
-  //   // > adapter altogether
-  //   setTimeout(function () {
-  //     return done(new Error('Adapter method (`update`) not implemented yet.'))
-  //   }, 16)
-  // },
+  //   console.log('-->', query)
+  //   console.log('-->', ids)
+  // }),
 
   /**
    *  ╔╦╗╔═╗╔═╗╔╦╗╦═╗╔═╗╦ ╦
@@ -218,13 +201,31 @@ module.exports = {
   /**
    * Find matching records.
    */
-  find: withDatastore((datastore, query) => {
-    const { criteria, meta } = query
+  find: withDatastore(async (datastore, query) => {
+    const { manager } = datastore
+    const { criteria } = query
+    const { where, select } = criteria
+    const model = datastore.models[query.using]
+    const { tableName } = model
+    const indexes = datastore.indexes[model.tableName]
 
-    console.log('--> criteria', criteria)
-    console.log('--> meta', meta)
+    const ids = await parseQuery(manager, model, indexes, where)
+    const keys = ids.map((id) => getRecordKey(tableName, id))
 
-    throw new Error('Adapter method (`find`) not implemented yet.')
+    const results = await manager
+      .pipeline(keys.map((k) => ['hmget', k, ...select]))
+      .exec()
+
+    const records = results.map(([, values]) => {
+      const result = values.reduce((result, value, index) => {
+        result[select[index]] = value
+        return result
+      }, {})
+
+      return parseResult(model.definition, result)
+    })
+
+    return records
   }),
 
   /**
@@ -259,12 +260,12 @@ module.exports = {
 
     const deleteIndexes = Promise.all(
       indexes.map(
-        (attrName) => manager.del(`${tableName}.index:${attrName}`)
+        (attrName) => manager.del(getIndexKey(tableName, attrName))
       )
     )
 
     return Promise.all([
-      deleteKeys(manager, `${tableName}:*`),
+      deleteKeys(manager, getRecordKey(tableName)),
       deleteIndexes
     ])
   })
