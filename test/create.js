@@ -9,7 +9,8 @@ describe('.create()', function () {
 
     const user = await User.create({
       firstName: 'Sarasa',
-      lastName: 'Pirulo'
+      lastName: 'Pirulo',
+      active: false
     }).fetch()
 
     expect(user.id).to.be.a('string')

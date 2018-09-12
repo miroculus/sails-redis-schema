@@ -8,6 +8,11 @@ module.exports = {
     id: {
       type: 'string'
     },
+    active: {
+      type: 'boolean',
+      defaultsTo: true,
+      meta: { index: true }
+    },
     age: {
       type: 'number',
       defaultsTo: 18
