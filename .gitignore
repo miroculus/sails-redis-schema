@@ -5,5 +5,3 @@
 .waterline
 node_modules
 npm-debug.log
-package-lock.*
-package-lock.json
