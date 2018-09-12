@@ -1,6 +1,6 @@
 {
   "name": "@miroculus/sails-redis-schema",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A redis adapter for Sails / Waterline with basic schema support",
   "scripts": {
     "test": "mocha ./test/index.js ./test/*.js",
