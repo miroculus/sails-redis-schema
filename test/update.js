@@ -1,6 +1,6 @@
 const { describe, it } = require('mocha')
 const { expect } = require('chai')
-const compareResults = require('./helpers/compare-results')
+const { recordsAreEqual } = require('./helpers/compare')
 
 describe('.update()', function () {
   it('should update a user', async function () {
@@ -58,7 +58,7 @@ describe('.update()', function () {
 
     const result = await User.find({ id: [user1.id, user2.id] })
 
-    compareResults(result, [
+    recordsAreEqual(result, [
       { ...user1, ...changes },
       { ...user2, ...changes }
     ])

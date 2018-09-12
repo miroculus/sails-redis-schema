@@ -1,6 +1,6 @@
 const { describe, it } = require('mocha')
 const { expect } = require('chai')
-const compareResults = require('./helpers/compare-results')
+const { recordsAreEqual, includesRecord } = require('./helpers/compare')
 
 describe('.find()', function () {
   it('should find one user by id', async function () {
@@ -31,7 +31,7 @@ describe('.find()', function () {
 
     const result = await User.find({ id: [user1.id, user2.id] })
 
-    compareResults(result, [user1, user2])
+    recordsAreEqual(result, [user1, user2])
   })
 
   it('should find one user by firstName', async function () {
@@ -55,7 +55,7 @@ describe('.find()', function () {
 
     const result = await User.find({ firstName })
 
-    compareResults(result, [user1, user2])
+    recordsAreEqual(result, [user1, user2])
   })
 
   it('should find multiple users with different firstNames', async function () {
@@ -73,7 +73,7 @@ describe('.find()', function () {
       firstName: [user1.firstName, user2.firstName]
     })
 
-    compareResults(result, [user1, user2])
+    recordsAreEqual(result, [user1, user2])
   })
 
   it('should select given keys', async function () {
@@ -90,5 +90,18 @@ describe('.find()', function () {
     })
 
     expect(result).to.be.eql({ id: user.id, firstName: user.firstName })
+  })
+
+  it('should find user by boolean field', async function () {
+    const { User } = this.ctx
+
+    const user = await User.create({
+      firstName: 'First',
+      active: false
+    }).fetch()
+
+    const results = await User.find({ id: user.id })
+
+    includesRecord(results, user)
   })
 })
