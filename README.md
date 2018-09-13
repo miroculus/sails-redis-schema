@@ -3,7 +3,7 @@
 A redis adapter for Sails / Waterline with basic schema and indexing support.
 
 This adapter is intended to be used with models with very simple attributes
-(only `number`, `boolean` and `string` types are supported) and to do very simple queries,
+(only `number`, `boolean`, `string` and `json` types are supported) and to do very simple queries,
 if you need something more complex you should be considering not using redis
 and move to a full featured DB like MongoDB, PostgreSQL, etc.
 
@@ -82,7 +82,7 @@ module.exports = {
 ```
 
 Things to keep in mind:
-* For now, only the `type`'s `number`, `boolean` and `string` are allowed.
+* For now, only the `type`'s `number`, `boolean`, `string` and `json` are allowed.
 * If you want to query your model using other attribute than the `primaryKey`,
   you have to index it, to do so, do the same as we did with `firstName`,
   and add:

@@ -8,7 +8,8 @@ describe('.find()', function () {
 
     const user = await User.create({
       firstName: 'First',
-      lastName: 'User'
+      lastName: 'User',
+      data: { one: 1 }
     }).fetch()
 
     const result = await User.findOne({ id: user.id })

@@ -13,10 +13,6 @@ module.exports = {
       defaultsTo: true,
       meta: { index: true }
     },
-    age: {
-      type: 'number',
-      defaultsTo: 18
-    },
     firstName: {
       type: 'string',
       required: true,
@@ -24,6 +20,13 @@ module.exports = {
     },
     lastName: {
       type: 'string'
+    },
+    age: {
+      type: 'number',
+      defaultsTo: 18
+    },
+    data: {
+      type: 'json'
     }
   }
 }
