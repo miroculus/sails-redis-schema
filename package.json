@@ -26,6 +26,7 @@
   "author": "mjlescano",
   "license": "MIT",
   "dependencies": {
+    "fast-json-stable-stringify": "2.0.0",
     "ioredis": "4.0.0",
     "lodash.intersection": "4.4.0",
     "map-obj": "3.0.0",
