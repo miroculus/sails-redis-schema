@@ -154,6 +154,12 @@ module.exports = {
   }),
 
   /**
+   * Build a new physical model (e.g. table/etc) to use for storing records in the database.
+   * We actually don't have to do nothing on redis.
+   */
+  define: (datastoreName, tableName, phmDef, done) => done(null),
+
+  /**
    * Drop a physical model (table/etc.) from the database, including all of its records.
    * (This is used for schema migrations.)
    */
