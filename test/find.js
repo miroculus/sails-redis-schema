@@ -101,7 +101,7 @@ describe('.find()', function () {
       active: false
     }).fetch()
 
-    const results = await User.find({ id: user.id })
+    const results = await User.find({ active: false })
 
     includesRecord(results, user)
   })
