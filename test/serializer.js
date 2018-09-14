@@ -1,4 +1,5 @@
 const { describe, it } = require('mocha')
+const { expect } = require('chai')
 const { attributes } = require('./models/User')
 const { recordsAreEqual } = require('./helpers/compare')
 const { serializeRecord, unserializeRecord } = require('../lib/serializer')
@@ -28,12 +29,28 @@ describe('lib/serializer', () => {
       const result = serializeRecord(attributes, origin)
       recordsAreEqual(target, result)
     })
+
+    it('should serialize empty json as `"null"`', () => {
+      const attrs = { data: { type: 'json' } }
+      const record = { data: '' }
+
+      const result = serializeRecord(attrs, record)
+      expect(result.data).to.be.equal('null')
+    })
   })
 
   describe('unserializeRecord()', () => {
     it('should unserialize object', () => {
       const result = unserializeRecord(attributes, target)
       recordsAreEqual(origin, result)
+    })
+
+    it('should unserialize empty json as `null`', () => {
+      const attrs = { data: { type: 'json' } }
+      const record = { data: '' }
+
+      const result = unserializeRecord(attrs, record)
+      expect(result.data).to.be.equal(null)
     })
   })
 })
