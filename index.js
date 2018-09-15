@@ -9,7 +9,7 @@ const withDatastore = (fn) => callbackify((datastoreName, ...restParams) => {
   const datastore = registeredDatastores[datastoreName]
 
   if (datastore === undefined) {
-    throw new Error('Datastore (`' + datastoreName + '`) is not currently registered with this adapter.')
+    throw new Error(`Datastore ('${datastoreName}') is not currently registered with this adapter.`)
   }
 
   return fn(datastore, ...restParams)
@@ -46,7 +46,7 @@ module.exports = {
     if (!identity) throw new Error('Datastore is missing an identity.')
 
     if (registeredDatastores[identity]) {
-      throw new Error('Datastore (`' + identity + '`) has already been registered by sails-redis.')
+      throw new Error(`Datastore ('${identity}') has already been registered by sails-redis.`)
     }
 
     const options = config.url
@@ -104,12 +104,6 @@ module.exports = {
     const { where } = query.criteria
 
     const ids = await schema.fetchIds(where)
-
-    // We should implement an update using lua, to avoid to get all the
-    // modified items. In the meantime, we apply a hard limit of 100 updates at a time.
-    if (ids.length > 100) {
-      throw new Error(`Cannot update more than 100 items at a time.`)
-    }
 
     await schema.updateByIds(ids, valuesToSet)
 
