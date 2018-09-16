@@ -24,7 +24,7 @@ const target = {
 }
 
 describe('lib/serializer', () => {
-  describe('serializeRecord()', () => {
+  describe('.serializeRecord()', () => {
     it('should serialize object', () => {
       const result = serializeRecord(attributes, origin)
       recordsAreEqual(target, result)
@@ -39,7 +39,7 @@ describe('lib/serializer', () => {
     })
   })
 
-  describe('unserializeRecord()', () => {
+  describe('.unserializeRecord()', () => {
     it('should unserialize object', () => {
       const result = unserializeRecord(attributes, target)
       recordsAreEqual(origin, result)

@@ -105,4 +105,27 @@ describe('.find()', function () {
 
     includesRecord(results, user)
   })
+
+  it('should populate user profile', async function () {
+    const { User, Profile } = this.ctx
+
+    const user = await User.create({
+      firstName: 'Some',
+      lastName: 'User'
+    }).fetch()
+
+    const profile = await Profile.create({
+      bio: 'Some bio',
+      user: user.id
+    }).fetch()
+
+    await User.update({ id: user.id }, { profile: profile.id })
+
+    const result = await User.findOne({ id: user.id }).populate('profile')
+
+    recordsAreEqual(result, {
+      ...user,
+      profile
+    })
+  })
 })

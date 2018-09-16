@@ -134,6 +134,11 @@ module.exports = {
    */
   find: withDatastore(async (datastore, query) => {
     const schema = datastore.schemas[query.using]
+
+    if (query.method !== 'find') {
+      throw new Error(`Query method of type "${query.method}" not compatible.`)
+    }
+
     return schema.find(query.criteria)
   }),
 
