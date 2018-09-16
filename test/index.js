@@ -4,7 +4,8 @@ const sailsRedisSchemaAdapter = require('../')
 
 const models = [
   'User',
-  'Profile'
+  'Profile',
+  'Pokemon'
 ]
 
 before(function (done) {

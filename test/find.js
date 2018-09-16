@@ -1,6 +1,7 @@
 const { describe, it } = require('mocha')
 const { expect } = require('chai')
 const { recordsAreEqual, includesRecord } = require('./helpers/compare')
+const createEach = require('./helpers/create-each')
 
 describe('.find()', function () {
   it('should find one user by id', async function () {
@@ -126,6 +127,29 @@ describe('.find()', function () {
     recordsAreEqual(result, {
       ...user,
       profile
+    })
+  })
+
+  it('should find one-to-many associated Pokemons', async function () {
+    const { User, Pokemon } = this.ctx
+
+    const user = await User.create({
+      firstName: 'Ash',
+      lastName: 'Ketchum'
+    }).fetch()
+
+    const owner = user.id
+
+    const pokemons = await createEach(Pokemon, [
+      { name: 'Ratata', owner },
+      { name: 'Pidgey', owner }
+    ])
+
+    const result = await User.findOne({ id: user.id }).populate('pokemons')
+
+    recordsAreEqual(result, {
+      ...user,
+      pokemons
     })
   })
 })
