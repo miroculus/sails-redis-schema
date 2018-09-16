@@ -3,6 +3,7 @@ const { expect } = require('chai')
 const stringify = require('fast-json-stable-stringify')
 const md5 = require('../lib/md5')
 const { unserializeRecord } = require('../lib/serializer')
+const { recordsAreEqual } = require('./helpers/compare')
 
 describe('.create()', function () {
   it('should create a user', async function () {
@@ -25,7 +26,7 @@ describe('.create()', function () {
     expect(user.firstName).to.be.equal('Sarasa')
     expect(user.lastName).to.be.equal('Pirulo')
     expect(user.active).to.be.equal(false)
-    expect(user.data).to.be.eql(data)
+    recordsAreEqual(user.data, data)
 
     // Check saved value on DB
     const result = await manager.hgetall(`user:${user.id}`)
@@ -58,5 +59,31 @@ describe('.create()', function () {
     } catch (err) {
       expect(err.raw.code).to.be.equal('E_UNIQUE')
     }
+  })
+
+  it('should create user with data null', async function () {
+    const { User } = this.ctx
+    const user = await User.create({ firstName: 'Simple' }).fetch()
+    expect(user.data).to.be.equal(null)
+  })
+
+  it('should create one-to-one associated Profile', async function () {
+    const { User, Profile } = this.ctx
+
+    const user = await User.create({
+      firstName: 'Some',
+      lastName: 'User'
+    }).fetch()
+
+    const profile = await Profile.create({
+      bio: 'Some biograpghy',
+      user: user.id
+    }).fetch()
+
+    recordsAreEqual(profile, {
+      id: profile.id,
+      bio: 'Some biograpghy',
+      user: user.id
+    })
   })
 })

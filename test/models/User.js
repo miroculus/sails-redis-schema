@@ -27,6 +27,9 @@ module.exports = {
     },
     data: {
       type: 'json'
+    },
+    profile: {
+      model: 'profile'
     }
   }
 }
