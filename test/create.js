@@ -4,6 +4,7 @@ const stringify = require('fast-json-stable-stringify')
 const md5 = require('../lib/md5')
 const { unserializeRecord } = require('../lib/serializer')
 const { recordsAreEqual } = require('./helpers/compare')
+const createEach = require('./helpers/create-each')
 
 describe('.create()', function () {
   it('should create a user', async function () {
@@ -85,5 +86,26 @@ describe('.create()', function () {
       bio: 'Some biograpghy',
       user: user.id
     })
+  })
+
+  it('should create one-to-many associated Pokemons', async function () {
+    const { User, Pokemon } = this.ctx
+
+    const user = await User.create({
+      firstName: 'Ash',
+      lastName: 'Ketchum'
+    }).fetch()
+
+    const owner = user.id
+
+    const pokemons = await createEach(Pokemon, [
+      { name: 'Ratata', owner },
+      { name: 'Pidgey', owner }
+    ])
+
+    recordsAreEqual(pokemons, [
+      { id: pokemons[0].id, name: 'Ratata', owner },
+      { id: pokemons[1].id, name: 'Pidgey', owner }
+    ])
   })
 })

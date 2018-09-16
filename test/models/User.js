@@ -28,8 +28,14 @@ module.exports = {
     data: {
       type: 'json'
     },
+    // one-to-one association via Profile.user
     profile: {
       model: 'profile'
+    },
+    // one-to-many association via Pokemon.owner
+    pokemons: {
+      collection: 'pokemon',
+      via: 'owner'
     }
   }
 }

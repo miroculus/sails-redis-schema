@@ -11,6 +11,7 @@ module.exports = {
     bio: {
       type: 'string'
     },
+    // one-to-one association via User.profile
     user: {
       model: 'user'
     }
