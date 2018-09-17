@@ -2,6 +2,8 @@ const { before, after } = require('mocha')
 const Waterline = require('waterline')
 const sailsRedisSchemaAdapter = require('../')
 
+const url = process.env.TEST_REDIS_URL || 'redis://127.0.0.1:6378'
+
 const models = [
   'User',
   'Profile',
@@ -23,7 +25,7 @@ before(function (done) {
     datastores: {
       default: {
         adapter: 'redis-schema',
-        url: process.env.TEST_REDIS_URL || null
+        url
       }
     }
   }

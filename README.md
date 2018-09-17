@@ -182,7 +182,7 @@ using [Docker](https://docker.com) with:
 docker-compose up
 ```
 
-And then, to execute the tests run (this will connect to the running redis on `127.0.0.1:6379`):
+And then, to execute the tests run (this will connect to the running redis on `127.0.0.1:6378`):
 ```sh
 npm test
 ```
