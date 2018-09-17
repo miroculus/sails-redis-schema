@@ -1,6 +1,4 @@
-const { deepStrictEqual } = require('assert')
-
-const sortById = (a, b) => a.id === b.id ? 0 : a.id > b.id ? 1 : -1
+const { fail, deepStrictEqual } = require('assert')
 
 const areEqual = (a, b) => {
   try {
@@ -14,14 +12,11 @@ const areEqual = (a, b) => {
 /**
  * Assert if the given records or array of records are the same, disregarding
  * array order.
- * @param {Array<Object>|Object} expected
- * @param {Array<Object>|Object} given
+ * @param {Object} expected
+ * @param {Object} given
  */
 exports.recordsAreEqual = (expected, given) => {
-  const a = Array.isArray(expected) ? expected.sort(sortById) : expected
-  const b = Array.isArray(given) ? given.sort(sortById) : given
-
-  deepStrictEqual(a, b)
+  deepStrictEqual(given, expected, 'Given records are not equal')
 }
 
 /**
@@ -30,6 +25,26 @@ exports.recordsAreEqual = (expected, given) => {
  * @param {Object} record
  */
 exports.includesRecord = (records, record) => {
-  if (records.some((r) => areEqual(record, r))) return
-  deepStrictEqual(records, record, 'The given record is not present on records')
+  if (records.some((r) => areEqual(record, r))) return true
+  deepStrictEqual(record, records, 'The given record is not present on records list')
+}
+
+/**
+ * Assert if the given arrays of records are the same, disregarding
+ * array order.
+ * @param {Array<Object>} expected
+ * @param {Array<Object>} given
+ */
+exports.arrayRecordsAreEqual = (expected, given) => {
+  if (!Array.isArray(expected) || !Array.isArray(given)) {
+    fail(given, expected, 'The given records lists should be array')
+  }
+
+  if (expected.length !== given.length) {
+    deepStrictEqual(expected, given, 'The given records list are not the same')
+  }
+
+  given.forEach((record) => exports.includesRecord(expected, record))
+
+  return true
 }

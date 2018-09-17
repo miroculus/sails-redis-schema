@@ -1,7 +1,11 @@
 const { describe, it } = require('mocha')
 const { expect } = require('chai')
-const { recordsAreEqual, includesRecord } = require('./helpers/compare')
 const createEach = require('./helpers/create-each')
+const {
+  recordsAreEqual,
+  includesRecord,
+  arrayRecordsAreEqual
+} = require('./helpers/compare')
 
 describe('.find()', function () {
   it('should find one user by id', async function () {
@@ -57,7 +61,7 @@ describe('.find()', function () {
 
     const result = await User.find({ firstName })
 
-    recordsAreEqual(result, [user1, user2])
+    arrayRecordsAreEqual(result, [user1, user2])
   })
 
   it('should find multiple users with different firstNames', async function () {
@@ -75,7 +79,7 @@ describe('.find()', function () {
       firstName: [user1.firstName, user2.firstName]
     })
 
-    recordsAreEqual(result, [user1, user2])
+    arrayRecordsAreEqual(result, [user1, user2])
   })
 
   it('should select given keys', async function () {
@@ -147,9 +151,6 @@ describe('.find()', function () {
 
     const result = await User.findOne({ id: user.id }).populate('pokemons')
 
-    recordsAreEqual(result, {
-      ...user,
-      pokemons
-    })
+    arrayRecordsAreEqual(result.pokemons, pokemons)
   })
 })
