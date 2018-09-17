@@ -4,7 +4,7 @@ const createEach = require('./helpers/create-each')
 const {
   recordsAreEqual,
   includesRecord,
-  arrayRecordsAreEqual
+  arraysContainSameRecords
 } = require('./helpers/compare')
 
 describe('.find()', function () {
@@ -61,7 +61,7 @@ describe('.find()', function () {
 
     const result = await User.find({ firstName })
 
-    arrayRecordsAreEqual(result, [user1, user2])
+    arraysContainSameRecords(result, [user1, user2])
   })
 
   it('should find multiple users with different firstNames', async function () {
@@ -79,7 +79,7 @@ describe('.find()', function () {
       firstName: [user1.firstName, user2.firstName]
     })
 
-    arrayRecordsAreEqual(result, [user1, user2])
+    arraysContainSameRecords(result, [user1, user2])
   })
 
   it('should select given keys', async function () {
@@ -151,6 +151,6 @@ describe('.find()', function () {
 
     const result = await User.findOne({ id: user.id }).populate('pokemons')
 
-    arrayRecordsAreEqual(result.pokemons, pokemons)
+    arraysContainSameRecords(result.pokemons, pokemons)
   })
 })

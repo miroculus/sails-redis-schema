@@ -35,7 +35,7 @@ exports.includesRecord = (records, record) => {
  * @param {Array<Object>} expected
  * @param {Array<Object>} given
  */
-exports.arrayRecordsAreEqual = (expected, given) => {
+exports.arraysContainSameRecords = (expected, given) => {
   if (!Array.isArray(expected) || !Array.isArray(given)) {
     fail(given, expected, 'The given records lists should be array')
   }
