@@ -62,10 +62,10 @@ describe('.create()', function () {
     }
   })
 
-  it('should create user with data null', async function () {
+  it('should create user with no data', async function () {
     const { User } = this.ctx
     const user = await User.create({ firstName: 'Simple' }).fetch()
-    expect(user.data).to.be.equal(null)
+    expect(user.hasOwnProperty('data')).to.be.equal(false)
   })
 
   it('should create one-to-one associated Profile', async function () {

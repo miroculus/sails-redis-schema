@@ -45,12 +45,12 @@ describe('lib/serializer', () => {
       recordsAreEqual(origin, result)
     })
 
-    it('should unserialize empty json as `null`', () => {
+    it('should unserialize empty json as empty value', () => {
       const attrs = { data: { type: 'json' } }
       const record = { data: '' }
 
       const result = unserializeRecord(attrs, record)
-      expect(result.data).to.be.equal(null)
+      expect(result.hasOwnProperty('data')).to.be.equal(false)
     })
   })
 })
