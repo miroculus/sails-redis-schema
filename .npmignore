@@ -1,8 +1,9 @@
-./test
 .DS_Store
 .git
 .gitignore
 .node_history
 .tmp
+docker-compose.yml
 node_modules
 npm-debug.log
+test
