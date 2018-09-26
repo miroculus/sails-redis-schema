@@ -117,16 +117,12 @@ module.exports = {
    */
   destroy: withDatastore(async (datastore, query) => {
     const schema = datastore.schemas[query.using]
-    const { where, select } = query.criteria
+    const { where } = query.criteria
+
     const ids = await schema.fetchIds(where)
+    const records = await schema.destroyByIds(ids)
 
-    const result = !!query.meta && query.meta.fetch === true
-      ? await schema.findByIds(ids, select)
-      : undefined
-
-    await schema.destroyByIds(ids)
-
-    return result
+    if (!!query.meta && query.meta.fetch === true) return records
   }),
 
   /**

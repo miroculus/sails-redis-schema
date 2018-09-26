@@ -19,7 +19,8 @@ module.exports = {
       meta: { index: true }
     },
     lastName: {
-      type: 'string'
+      type: 'string',
+      meta: { index: true }
     },
     age: {
       type: 'number',
