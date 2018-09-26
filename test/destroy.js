@@ -1,5 +1,6 @@
 const { describe, it } = require('mocha')
 const { expect } = require('chai')
+const { userIndexExists } = require('./helpers/redis')
 
 describe('.destroy()', function () {
   it('should destroy a user', async function () {
@@ -42,5 +43,19 @@ describe('.destroy()', function () {
     const result = await User.destroy({ id: user.id }).fetch()
 
     expect(result[0]).to.be.eql(user)
+  })
+
+  it('should destroy indexes', async function () {
+    const { User, manager } = this.ctx
+
+    const user = await User.create({
+      firstName: 'Sarasa',
+      active: true
+    }).fetch()
+
+    await User.destroy({ id: user.id }).fetch()
+
+    expect(await userIndexExists(manager, user, 'firstName')).to.be.equal(false)
+    expect(await userIndexExists(manager, user, 'active')).to.be.equal(false)
   })
 })

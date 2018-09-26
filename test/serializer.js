@@ -30,12 +30,12 @@ describe('lib/serializer', () => {
       recordsAreEqual(target, result)
     })
 
-    it('should serialize empty json as `"null"`', () => {
+    it('should not serialize empty json as "null"', () => {
       const attrs = { data: { type: 'json' } }
       const record = { data: '' }
 
       const result = serializeRecord(attrs, record)
-      expect(result.data).to.be.equal('null')
+      expect(result.hasOwnProperty('data')).to.be.equal(false)
     })
   })
 

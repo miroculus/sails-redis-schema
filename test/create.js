@@ -1,9 +1,9 @@
 const { describe, it } = require('mocha')
 const { expect } = require('chai')
 const stringify = require('fast-json-stable-stringify')
-const md5 = require('../lib/md5')
 const { unserializeRecord } = require('../lib/serializer')
 const { recordsAreEqual } = require('./helpers/compare')
+const { userIndexExists } = require('./helpers/redis')
 const createEach = require('./helpers/create-each')
 
 describe('.create()', function () {
@@ -38,9 +38,8 @@ describe('.create()', function () {
     expect(jsonData).to.be.equal(stringify(data))
 
     // Check it indexed the firstName
-    const indexKey = md5(user.firstName)
-    const isIndexed = await manager.sismember(`user.index:firstName:${indexKey}`, user.id)
-    expect(isIndexed).to.be.equal(1)
+    const indexed = await userIndexExists(manager, user, 'firstName')
+    expect(indexed).to.be.equal(true)
   })
 
   it('should not create a repeated user', async function () {
