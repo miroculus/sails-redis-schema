@@ -40,9 +40,11 @@ describe('.destroy()', function () {
       lastName: 'Pirulo'
     }).fetch()
 
-    const result = await User.destroy({ id: user.id }).fetch()
+    const [result] = await User.destroy({ id: user.id }).fetch()
+    const empty = await User.findOne({ id: user.id })
 
-    expect(result[0]).to.be.eql(user)
+    expect(empty).to.be.eql(undefined)
+    expect(result).to.be.eql(user)
   })
 
   it('should destroy indexes', async function () {

@@ -16,11 +16,11 @@ describe('.update()', function () {
       age: 22
     }
 
-    await User.update({ id: user.id }, changes)
+    await User.update({ id: user.id }, { ...changes })
 
     const result = await User.findOne({ id: user.id })
 
-    expect(result).to.be.eql({ ...user, ...changes })
+    expect({ ...user, ...changes }).to.be.eql(result)
   })
 
   it('should delete a key', async function () {
@@ -72,7 +72,7 @@ describe('.update()', function () {
       age: 22
     }
 
-    await User.update({ id: [user1.id, user2.id] }, changes)
+    await User.update({ id: [user1.id, user2.id] }, { ...changes })
 
     const result = await User.find({ id: [user1.id, user2.id] })
 
@@ -95,6 +95,7 @@ describe('.update()', function () {
       firstName: 'New name'
     }).fetch()
 
+    expect(result).to.be.eql({ ...user, firstName: 'New name' })
     expect(await userIndexExists(manager, user, 'firstName')).to.be.equal(false)
     expect(await userIndexExists(manager, result, 'firstName')).to.be.equal(true)
   })
@@ -113,6 +114,7 @@ describe('.update()', function () {
       active: false
     }).fetch()
 
+    expect(result).to.be.eql({ ...user, active: false })
     expect(await userIndexExists(manager, user, 'active')).to.be.equal(false)
     expect(await userIndexExists(manager, result, 'active')).to.be.equal(true)
   })

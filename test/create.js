@@ -1,7 +1,6 @@
 const { describe, it } = require('mocha')
 const { expect } = require('chai')
 const stringify = require('fast-json-stable-stringify')
-const { unserializeRecord } = require('../lib/serializer')
 const { recordsAreEqual } = require('./helpers/compare')
 const { userIndexExists } = require('./helpers/redis')
 const createEach = require('./helpers/create-each')
@@ -31,7 +30,14 @@ describe('.create()', function () {
 
     // Check saved value on DB
     const result = await manager.hgetall(`user:${user.id}`)
-    expect(unserializeRecord(User.attributes, result)).to.be.eql(user)
+    expect(result).to.be.eql({
+      id: user.id,
+      firstName: user.firstName,
+      last_name: user.lastName,
+      active: user.active.toString(),
+      data: stringify(data),
+      age: user.age.toString()
+    })
 
     // Check json type data is saved on redis as a JSON string
     const jsonData = await manager.hget(`user:${user.id}`, 'data')

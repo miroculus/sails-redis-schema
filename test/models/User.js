@@ -20,7 +20,8 @@ module.exports = {
     },
     lastName: {
       type: 'string',
-      meta: { index: true }
+      meta: { index: true },
+      columnName: 'last_name'
     },
     age: {
       type: 'number',
