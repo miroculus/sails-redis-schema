@@ -29,7 +29,6 @@
   "dependencies": {
     "fast-json-stable-stringify": "2.0.0",
     "ioredis": "4.0.0",
-    "lodash.intersection": "4.4.0",
     "shortid": "2.2.13"
   },
   "devDependencies": {
@@ -38,7 +37,7 @@
     "nodemon": "1.18.9",
     "pre-commit": "1.2.2",
     "standard": "12.0.1",
-    "waterline": "0.13.5"
+    "waterline": "0.13.6"
   },
   "waterlineAdapter": {
     "type": "sails-redis-schema",
