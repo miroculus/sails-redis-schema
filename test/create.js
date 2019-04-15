@@ -2,7 +2,7 @@ const { describe, it } = require('mocha')
 const { expect } = require('chai')
 const stringify = require('fast-json-stable-stringify')
 const { recordsAreEqual } = require('./helpers/compare')
-const { userIndexExists } = require('./helpers/redis')
+const { checkUserIndexes } = require('./helpers/redis')
 const createEach = require('./helpers/create-each')
 
 describe('.create()', function () {
@@ -43,9 +43,7 @@ describe('.create()', function () {
     const jsonData = await manager.hget(`user:${user.id}`, 'data')
     expect(jsonData).to.be.equal(stringify(data))
 
-    // Check it indexed the firstName
-    const indexed = await userIndexExists(manager, user, 'firstName')
-    expect(indexed).to.be.equal(true)
+    await checkUserIndexes(manager, user)
   })
 
   it('should not create a repeated user', async function () {

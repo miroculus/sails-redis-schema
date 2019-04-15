@@ -1,17 +1,18 @@
 const { describe, it } = require('mocha')
 const { expect } = require('chai')
 const { recordsAreEqual } = require('./helpers/compare')
-const { userIndexExists } = require('./helpers/redis')
+const { userIndexExists, checkUserIndexes } = require('./helpers/redis')
 
 describe('.update()', function () {
   it('should update a user', async function () {
-    const { User } = this.ctx
+    const { manager, User } = this.ctx
 
     const user = await User.create({
       firstName: 'Sarasa'
     }).fetch()
 
     const changes = {
+      firstName: 'Newname',
       lastName: 'Second',
       age: 22
     }
@@ -21,10 +22,15 @@ describe('.update()', function () {
     const result = await User.findOne({ id: user.id })
 
     expect({ ...user, ...changes }).to.be.eql(result)
+
+    // Check old index was deleted
+    expect(await userIndexExists(manager, user, 'firstName')).to.be.equal(false)
+
+    await checkUserIndexes(manager, result)
   })
 
   it('should delete a key', async function () {
-    const { User } = this.ctx
+    const { manager, User } = this.ctx
 
     const user = await User.create({
       firstName: 'A name',
@@ -38,6 +44,8 @@ describe('.update()', function () {
     }).fetch()
 
     expect(result.hasOwnProperty('lastName')).to.be.equal(false)
+
+    await checkUserIndexes(manager, result)
   })
 
   it('should not update a not existant user', async function () {
@@ -57,7 +65,7 @@ describe('.update()', function () {
   })
 
   it('should update multiple users', async function () {
-    const { User } = this.ctx
+    const { manager, User } = this.ctx
 
     const user1 = await User.create({
       firstName: 'First User'
@@ -80,6 +88,8 @@ describe('.update()', function () {
       { ...user1, ...changes },
       { ...user2, ...changes }
     ])
+
+    await Promise.all(result.map((user) => checkUserIndexes(manager, user)))
   })
 
   it('should update string indexes', async function () {
@@ -96,8 +106,11 @@ describe('.update()', function () {
     }).fetch()
 
     expect(result).to.be.eql({ ...user, firstName: 'New name' })
+
+    // Check old index was deleted
     expect(await userIndexExists(manager, user, 'firstName')).to.be.equal(false)
-    expect(await userIndexExists(manager, result, 'firstName')).to.be.equal(true)
+
+    await checkUserIndexes(manager, result)
   })
 
   it('should update boolean indexes', async function () {
@@ -116,7 +129,8 @@ describe('.update()', function () {
 
     expect(result).to.be.eql({ ...user, active: false })
     expect(await userIndexExists(manager, user, 'active')).to.be.equal(false)
-    expect(await userIndexExists(manager, result, 'active')).to.be.equal(true)
+
+    await checkUserIndexes(manager, result)
   })
 
   it('should destroy indexes on attr deletion', async function () {
@@ -127,12 +141,13 @@ describe('.update()', function () {
       lastName: 'The last name'
     }).fetch()
 
-    await User.update({
+    const result = await User.update({
       id: user.id
     }, {
       lastName: ''
-    })
+    }).fetch()
 
     expect(await userIndexExists(manager, user, 'lastName')).to.be.equal(false)
+    await checkUserIndexes(manager, result)
   })
 })
