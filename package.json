@@ -27,8 +27,8 @@
   "author": "mjlescano",
   "license": "MIT",
   "dependencies": {
-    "fast-json-stable-stringify": "2.0.0",
-    "ioredis": "4.0.0",
+    "fast-json-stable-stringify": "2.1.0",
+    "ioredis": "4.17.3",
     "nanoid": "3.1.12"
   },
   "devDependencies": {
