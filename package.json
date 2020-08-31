@@ -1,6 +1,6 @@
 {
   "name": "@miroculus/sails-redis-schema",
-  "version": "1.3.7",
+  "version": "1.4.0",
   "description": "A redis adapter for Sails / Waterline with basic schema support",
   "scripts": {
     "test": "mocha ./test/index.js ./test/*.js",
@@ -27,14 +27,14 @@
   "author": "mjlescano",
   "license": "MIT",
   "dependencies": {
-    "fast-json-stable-stringify": "2.0.0",
-    "ioredis": "4.0.0",
-    "shortid": "2.2.13"
+    "fast-json-stable-stringify": "2.1.0",
+    "ioredis": "4.17.3",
+    "nanoid": "3.1.12"
   },
   "devDependencies": {
-    "chai": "4.1.2",
-    "mocha": "5.2.0",
-    "nodemon": "1.18.9",
+    "chai": "4.2.0",
+    "mocha": "8.1.3",
+    "nodemon": "2.0.4",
     "pre-commit": "1.2.2",
     "standard": "12.0.1",
     "waterline": "0.13.6"
