@@ -119,7 +119,7 @@ User.find({ firstName: 'Mark', age: 20 }) // Throws an error
 ### .create()
 
 The create method works as expected. And, if you don't define an `id`, we will
-create one for you using [`shortid`](https://npmjs.com/package/shortid).
+create one for you using [`nanoid`](https://npmjs.com/package/nanoid).
 
 Examples:
 
