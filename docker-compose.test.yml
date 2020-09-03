@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+  sails-redis-schema:
+    environment:
+      - TEST_REDIS_URL=redis://redis:6379
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    links:
+      - "redis:redis"
+    command: "npm run test"    
+    depends_on:
+      - redis
+  redis:
+    image: redis:4-alpine
+    ports:
+      - "6379:6379"
