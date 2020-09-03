@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  sails-redis-schema:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    command: "npm run test"    
+    depends_on:
+      - redis
+    network_mode: host
+  redis:
+    image: redis:4-alpine
+    network_mode: host

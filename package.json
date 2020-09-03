@@ -3,7 +3,7 @@
   "version": "1.4.0",
   "description": "A redis adapter for Sails / Waterline with basic schema support",
   "scripts": {
-    "test": "mocha ./test/index.js ./test/*.js",
+    "test": "./node_modules/.bin/mocha",
     "test:watch": "npx nodemon --exec npm run test",
     "posttest": "npm run standard",
     "standard": "standard",
